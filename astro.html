@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Scientific Astro Calculator</title>
+    <style>
+        body {
+            background: #05080f;
+            color: #e6ebff;
+            font-family: monospace;
+            padding: 20px;
+        }
+
+        h1,
+        h2 {
+            color: #9bb0ff;
+        }
+
+        input,
+        button {
+            background: #0f1733;
+            color: white;
+            border: 1px solid #2b3a99;
+            padding: 6px;
+            margin: 4px;
+            border-radius: 6px;
+        }
+
+        .section {
+            border: 1px solid #222;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🪐 Scientific Astronomy Calculator</h1>
+
+    <div class="section">
+        <h2>1. Julian Date & Sidereal Time</h2>
+        Longitude (deg):
+        <input id="lon" type="number" step="0.01">
+        <button onclick="sidereal()">Calculate</button>
+        <p id="sidOut"></p>
+    </div>
+
+    <div class="section">
+        <h2>2. RA / Dec → Alt / Az</h2>
+        RA (hours): <input id="ra" type="number" step="0.01"><br>
+        Dec (deg): <input id="dec" type="number" step="0.01"><br>
+        Latitude (deg): <input id="lat" type="number" step="0.01"><br>
+        Longitude (deg): <input id="lon2" type="number" step="0.01"><br>
+        <button onclick="raDecToAltAz()">Convert</button>
+        <p id="altazOut"></p>
+    </div>
+
+    <div class="section">
+        <h2>3. Angular Separation</h2>
+        RA1 (h): <input id="ra1"> Dec1 (deg): <input id="dec1"><br>
+        RA2 (h): <input id="ra2"> Dec2 (deg): <input id="dec2"><br>
+        <button onclick="separation()">Compute</button>
+        <p id="sepOut"></p>
+    </div>
+
+    <div class="section">
+        <h2>4. Magnitude → Brightness Ratio</h2>
+        m1: <input id="m1"> m2: <input id="m2">
+        <button onclick="magnitude()">Calculate</button>
+        <p id="magOut"></p>
+    </div>
+
+    <div class="section">
+        <h2>5. Kepler's 3rd Law</h2>
+        Semi-major axis (AU):
+        <input id="a" type="number" step="0.01">
+        <button onclick="kepler()">Orbital Period</button>
+        <p id="kepOut"></p>
+    </div>
+
+    <script>
+        /* ---------- helpers ---------- */
+        const d2r = d => d * Math.PI / 180;
+        const r2d = r => r * 180 / Math.PI;
+
+        function julianDate() {
+            return Date.now() / 86400000 + 2440587.5;
+        }
+
+        /* ---------- sidereal time ---------- */
+        function localSiderealTime(longitude) {
+            const jd = julianDate();
+            const d = jd - 2451545.0;
+
+            let gst = 280.46061837 + 360.98564736629 * d;
+            gst = ((gst % 360) + 360) % 360;
+
+            let lst = gst + longitude;
+            lst = ((lst % 360) + 360) % 360;
+
+            return lst;
+        }
+
+        function sidereal() {
+            const lon = Number(document.getElementById("lon").value);
+            const jd = julianDate();
+            const gst = localSiderealTime(0);
+            const lst = localSiderealTime(lon);
+
+            sidOut.innerHTML =
+                "Julian Date = " + jd.toFixed(5) + "<br>" +
+                "GST = " + gst.toFixed(3) + "°<br>" +
+                "LST = " + lst.toFixed(3) + "°";
+        }
+
+        /* ---------- RA/Dec → Alt/Az ---------- */
+        function raDecToAltAz() {
+            const raHours = Number(document.getElementById("ra").value);
+            const decDeg = Number(document.getElementById("dec").value);
+            const latDeg = Number(document.getElementById("lat").value);
+            const lonDeg = Number(document.getElementById("lon2").value);
+
+            const ra = d2r(raHours * 15);
+            const dec = d2r(decDeg);
+            const lat = d2r(latDeg);
+
+            const lst = d2r(localSiderealTime(lonDeg));
+            const ha = lst - ra;
+
+            const sinAlt =
+                Math.sin(dec) * Math.sin(lat) +
+                Math.cos(dec) * Math.cos(lat) * Math.cos(ha);
+
+            const alt = Math.asin(sinAlt);
+
+            const az = Math.atan2(
+                -Math.sin(ha),
+                Math.tan(dec) * Math.cos(lat) -
+                Math.sin(lat) * Math.cos(ha)
+            );
+
+            altazOut.innerHTML =
+                "Altitude = " + r2d(alt).toFixed(2) + "°<br>" +
+                "Azimuth = " + ((r2d(az) + 360) % 360).toFixed(2) + "°";
+        }
+
+        /* ---------- angular separation ---------- */
+        function separation() {
+            const ra1r = d2r(Number(ra1.value) * 15);
+            const ra2r = d2r(Number(ra2.value) * 15);
+            const d1 = d2r(Number(dec1.value));
+            const d2 = d2r(Number(dec2.value));
+
+            const cosTheta =
+                Math.sin(d1) * Math.sin(d2) +
+                Math.cos(d1) * Math.cos(d2) * Math.cos(ra1r - ra2r);
+
+            sepOut.innerHTML =
+                "Angular Separation = " +
+                r2d(Math.acos(cosTheta)).toFixed(4) + "°";
+        }
+
+        /* ---------- magnitude ---------- */
+        function magnitude() {
+            const m1 = Number(document.getElementById("m1").value);
+            const m2 = Number(document.getElementById("m2").value);
+            const ratio = Math.pow(10, 0.4 * (m2 - m1));
+
+            magOut.innerHTML =
+                "Brightness Ratio = " + ratio.toFixed(3);
+        }
+
+        /* ---------- kepler ---------- */
+        function kepler() {
+            const a = Number(document.getElementById("a").value);
+            const P = Math.sqrt(a * a * a);
+
+            kepOut.innerHTML =
+                "Orbital Period = " + P.toFixed(3) + " years";
+        }
+    </script>
+
+</body>
+
+</html>
